@@ -11,9 +11,29 @@ class DropBoxController {
         this.timeleftEl = this.snackModalEl.querySelector('.timeleft');
 
 
+        // firabese
+        this.connectFirebase();
+
         this.initEvents();
 
     }
+
+    connectFirebase() {
+        const config = {
+            apiKey: "AIzaSyDseRPidENRFXHhK9Ng_2In1SRCfsqgDts",
+            authDomain: "dropbox-clone-644b2.firebaseapp.com",
+            databaseURL: "https://dropbox-clone-644b2-default-rtdb.firebaseio.com",
+            projectId: "dropbox-clone-644b2",
+            storageBucket: "dropbox-clone-644b2.appspot.com",
+            messagingSenderId: "414618748803",
+            appId: "1:414618748803:web:0785f81b3e9326ba1a98b6",
+            measurementId: "G-N2MY7GS5JL",
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(config);
+    }
+
 
     initEvents() {
 
