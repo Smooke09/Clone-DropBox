@@ -1,5 +1,9 @@
 class DropBoxController {
+
   constructor() {
+
+    this.onselectionchange = new Event('selectionchange');
+
     this.btnSendFileEl = document.querySelector("#btn-send-file");
     this.inputFilesEl = document.querySelector("#files");
     this.snackModalEl = document.querySelector("#react-snackbar-root");
@@ -8,7 +12,13 @@ class DropBoxController {
     this.timeleftEl = this.snackModalEl.querySelector('.timeleft')
     this.listFilesEl = document.querySelector('#list-of-files-and-directories')
 
+    this.btnNewFolder = document.querySelector('#btn-new-folder')
+    this.btnRename = document.querySelector('#btn-rename')
+    this.btnDelete = document.querySelector('#btn-delete')
+
+    // firabese
     this.connectFirebase();
+
     this.initEvents();
     this.readFiles();
   }
@@ -29,7 +39,48 @@ class DropBoxController {
     firebase.initializeApp(config);
   }
 
+
+
+  getSelection() {
+    return this.listFilesEl.querySelectorAll('.selected');
+  }
+
   initEvents() {
+
+    this.btnRename.addEventListener('click', e => {
+
+      let li = this.getSelection()[0];
+      let file = JSON.parse(li.dataset.file);
+
+      let name = prompt('Renomar o arquivo:', file.name);
+
+      if (name) {
+        file.originalFilename = name;
+        this.getFirebaseRef().child(li.dataset.key).set(file);
+      }
+    })
+
+    this.listFilesEl.addEventListener('selectionchange', e => {
+
+      switch (this.getSelection().length) {
+
+        case 0:
+          this.btnDelete.style.display = 'none';
+          this.btnRename.style.display = 'none';
+          break;
+
+        case 1:
+          this.btnDelete.style.display = 'block';
+          this.btnRename.style.display = 'block';
+          break;
+
+        default:
+          this.btnDelete.style.display = 'block';
+          this.btnRename.style.display = 'none';
+      }
+
+    })
+
     this.btnSendFileEl.addEventListener("click", (event) => {
       this.inputFilesEl.click();
     });
@@ -55,58 +106,66 @@ class DropBoxController {
   }
 
   uploadComplete() {
-    this.modalShow(false)
-    this.inputFilesEl.value = "";
-    this.btnSendFileEl.disabled = false
+    this.modalShow(false);
+    this.inputFileEl.value = "";
+    this.btnSendFileEl.disabled = false;
   }
 
   getFirebaseRef() {
-    return firebase.database().ref('files')
+    return firebase.database().ref("files");
   }
 
   modalShow(show = true) {
-    this.snackModalEl.style.display = (show) ? "block" : "none"
+    this.snackModalEl.style.display = show ? "block" : "none";
   }
 
-  uploadTask(files) {
+  ajax(url, method = 'GET', formData = new formData(), onprogress = function () { }, onloadstart = function () { }) {
+    return new Promise((resolve, reject) => {
+      let ajax = new XMLHttpRequest();
+      ajax.open(method, url);
+      ajax.onload = (event) => {
+        try {
+          resolve(JSON.parse(ajax.responseText));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      ajax.onerror = (event) => {
+        reject(event);
+      };
+      ajax.upload.onprogress = onprogress;
+      onloadstart();
+      ajax.send(formData);
+    });
+  };
+
+
+  upploadTask(files) {
     let promises = [];
-
-    [...files].forEach(file => {
+    [...files].forEach((file) => {
       promises.push(new Promise((resolve, reject) => {
-        let ajax = new XMLHttpRequest();
-
-        ajax.open('POST', '/upload')
-
-        ajax.onload = event => {
-
-          try {
-            resolve(JSON.parse(ajax.responseText))
-          } catch (e) {
-            reject(e)
-          }
-        }
-
-        ajax.onerror = event => {
-          reject(event)
-        }
-
-        ajax.upload.onprogress = event => {
-          this.uploadProgress(event, file)
-        }
-
-        let formData = new FormData()
-
-        formData.append('input-file', file)
-
-        this.startUploadTime = Date.now();
-
-        ajax.send(formData)
-
-      }))
-    })
-
-    return Promise.all(promises)
+        let fileRef = firebase.storage().ref(this.currentFolder.join('/')).child(file.name);
+        let task = fileRef.put(file);
+        task.on('state_changed', snapshot => {
+          this.uploadProgress({
+            loaded: snapshot.bytesTransferred,
+            total: snapshot.totalBytes
+          }, file);
+        }, error => {
+          console.error(error);
+          reject(error);
+        }, () => {
+          fileRef.getMetadata().then(metadata => {
+            resolve(metadata);
+          }).catch(err => {
+            reject(err);
+          });
+        });
+      }));
+    });
+    return Promise.all(promises);
   }
+
 
   uploadProgress(event, file) {
 
@@ -335,10 +394,26 @@ class DropBoxController {
   }
 
   initEventsLi(li) {
-    li.addEventListener('click', e => {
 
+    li.addEventListener('dblclick', e => {
+
+      let file = JSON.parse(li.dataset.file);
+
+      switch (file.mimetype) {
+
+        case 'folder':
+          this.currentFolder.push(file.originalFilename);
+          this.openFolder();
+          break;
+
+        default:
+          window.open(file.filepath);
+      }
+    });
+
+    li.addEventListener("click", (e) => {
       if (e.shiftKey) {
-        let firstLi = this.listFilesEl.querySelector('.selected');
+        let firstLi = this.listFilesEl.querySelector(".selected");
 
         if (firstLi) {
           let indexStart;
@@ -346,29 +421,34 @@ class DropBoxController {
           let lis = li.parentElement.childNodes;
 
           lis.forEach((el, index) => {
-            if (firstLi === el) indexStart = index;
-            if (li === el) indexEnd = index;
-          })
+            if (firstLi === el) {
+              indexStart = index;
+            }
+            if (li === el) {
+              indexEnd = index
+            };
+          });
 
-          let index = [indexStart, indexEnd].sort()
+          let index = [indexStart, indexEnd].sort();
 
           lis.forEach((el, i) => {
             if (i >= index[0] && i <= index[1]) {
-              el.classList.add('selected')
+              el.classList.add("selected");
             }
-          })
+          });
+          this.listFilesEl.dispatchEvent(this.onselectionchange);
           return true;
         }
       }
 
       if (!e.ctrlKey) {
-        this.listFilesEl.querySelectorAll('li.selected').forEach(el => {
-          el.classList.remove('selected')
-        })
+        this.listFilesEl.querySelectorAll("li.selected").forEach((el) => {
+          el.classList.remove("selected");
+        });
       }
-
-      li.classList.toggle('selected')
-    })
+      li.classList.toggle("selected");
+      this.listFilesEl.dispatchEvent(this.onselectionchange);
+    });
   }
 
 }
