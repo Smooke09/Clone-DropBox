@@ -47,6 +47,8 @@ class DropBoxController {
 
   // metodo para remover
   removeTask() {
+
+
     let promises = [];
 
     this.getSelection().forEach((li) => {
@@ -60,6 +62,7 @@ class DropBoxController {
 
       promises.push(this.ajax('/file', 'DELETE', formData));
     });
+
 
     return Promise.all(promises);
   }
@@ -110,7 +113,7 @@ class DropBoxController {
 
     this.inputFilesEl.addEventListener("change", (event) => {
       this.btnSendFileEl.disabled = true
-      this.uploadTask(event.target.files).then(responses => {
+      this.upploadTask(event.target.files).then(responses => {
         responses.forEach(resp => {
 
           this.getFirebaseRef().push().set(resp.files['input-file'])
@@ -174,8 +177,9 @@ class DropBoxController {
     });
   }
 
-
+  // aqui
   upploadTask(files) {
+
 
     let promises = [];
 
