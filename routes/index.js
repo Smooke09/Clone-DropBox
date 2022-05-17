@@ -17,7 +17,8 @@ router.delete('/file', (req, res) => {
   form.parse(req, (err, fields, files) => {
 
     let path = fields.filepath;
-    console.log(path)
+
+    console.log(fields);
     if (fs.existsSync(path)) {
       fs.unlink(path, err => {
         if (err) {
@@ -29,10 +30,6 @@ router.delete('/file', (req, res) => {
             fields
           });
         }
-      });
-    } else {
-      res.status(404).json({
-        error: 'File not found.'
       });
     }
   });
