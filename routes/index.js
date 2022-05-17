@@ -8,6 +8,29 @@ router.get('/', function (req, res, next) {
   res.render('index', { title: 'Express' });
 });
 
+
+router.get('/file', (req, res) => {
+
+  let path = req.query.filepath;
+  console.log(path);
+  if (fs.existsSync(path)) {
+    fs.readFile(path, (err, data) => {
+      if (err) {
+        console.error(err);
+        res.status(400).json({
+          error: err
+        });
+      } else {
+        res.status(200).end(data);
+      }
+    });
+  } else {
+    res.status(200).end(data);
+  };
+}
+);
+
+
 router.delete('/file', (req, res) => {
   let form = new formidable.IncomingForm({
     uploadDir: './upload',
@@ -18,7 +41,7 @@ router.delete('/file', (req, res) => {
 
     let path = fields.filepath;
 
-    console.log(fields);
+    // console.log(fields);
     if (fs.existsSync(path)) {
       fs.unlink(path, err => {
         if (err) {
@@ -45,9 +68,10 @@ router.post('/upload', (req, res) => {
   form.parse(req, (err, fields, files) => {
     res.json({
       files
-    })
-  })
 
+    })
+    // console.log(files)
+  })
 })
 
 module.exports = router;
