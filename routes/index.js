@@ -8,7 +8,6 @@ router.get('/', function (req, res, next) {
   res.render('index', { title: 'Express' });
 });
 
-
 router.get('/file', (req, res) => {
 
   let path = req.query.filepath;
@@ -30,7 +29,6 @@ router.get('/file', (req, res) => {
 }
 );
 
-
 router.delete('/file', (req, res) => {
   let form = new formidable.IncomingForm({
     uploadDir: './upload',
@@ -40,8 +38,7 @@ router.delete('/file', (req, res) => {
   form.parse(req, (err, fields, files) => {
 
     let path = fields.filepath;
-
-    // console.log(fields);
+    console.log(path)
     if (fs.existsSync(path)) {
       fs.unlink(path, err => {
         if (err) {
@@ -54,6 +51,10 @@ router.delete('/file', (req, res) => {
           });
         }
       });
+    } else {
+      res.status(404).json({
+        error: 'File not found.'
+      });
     }
   });
 });
@@ -63,15 +64,13 @@ router.post('/upload', (req, res) => {
   let form = new formidable.IncomingForm({
     uploadDir: './upload',
     keepExtensions: true
-  })
+  });
 
   form.parse(req, (err, fields, files) => {
     res.json({
       files
-
-    })
-    // console.log(files)
-  })
-})
+    });
+  });
+});
 
 module.exports = router;

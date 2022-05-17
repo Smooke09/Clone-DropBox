@@ -45,38 +45,94 @@ class DropBoxController {
     firebase.initializeApp(config);
   }
 
+  removeFolderTask(ref, originalFilename, key) {
 
+    return new Promise((resolve, reject) => {
+
+      let folderRef = this.getFirebaseRef(ref + '/' + originalFilename);
+
+      folderRef.on('value', snapshot => {
+
+        folderRef.off('value');
+
+        if (snapshot.exists()) {
+
+          snapshot.forEach(item => {
+            let data = item.val();
+            data.key = item.key;
+
+            if (data.mimetype === 'folder') {
+
+              this.removeFolderTask(ref + '/' + originalFilename, data.originalFilename).then(() => {
+                resolve({
+                  fields: {
+                    key: data.key
+                  }
+                });
+              }).catch(err => {
+                reject(err);
+              });
+            } else if (data.mimetype) {
+              this.removeFile(ref + '/' + originalFilename, data.originalFilename).then(() => {
+                resolve({
+                  fields: {
+                    key: data.key
+                  }
+                });
+              }).catch(err => {
+                reject(err);
+              });
+            }
+          });
+
+          folderRef.remove();
+        } else {
+
+          this.getFirebaseRef('root').child(key).remove();
+
+        }
+      });
+    });
+  }
 
   getSelection() {
     return this.listFilesEl.querySelectorAll('.selected');
   }
 
-  // metodo para remover
-  // metodo remove task adicionado junto com btn-delete
+
+
   removeTask() {
 
     let promises = [];
 
     this.getSelection().forEach((li) => {
+
       let file = JSON.parse(li.dataset.file);
       let key = li.dataset.key;
-      let formData = new FormData()
 
+      promises.push(new Promise((resolve, reject) => {
 
-      formData.append('filepath', file.filepath);
+        if (file.mimetype === 'folder') {
+          this.removeFolderTask(this.currentFolder.join('/'), file.originalFilename, key).then(() => {
+            resolve({
+              fields: {
+                key
+              }
+            });
+          });
+        } else if (file.mimetype) {
 
-      console.log(formData[0])
-
-      formData.append('key', key);
-
-
-
-      promises.push(this.ajax('/file', 'DELETE', formData));
-
+          this.removeFile(this.currentFolder.join('/'), file.originalFilename).then(() => {
+            resolve({
+              fields: {
+                key
+              }
+            });
+          });
+        }
+      }));
     });
-
     return Promise.all(promises);
-
   }
 
 
@@ -88,10 +144,10 @@ class DropBoxController {
   }
 
 
+
   initEvents() {
 
     this.btnNewFolder.addEventListener('click', e => {
-
 
       let originalFilename = prompt('Nome da nova pasta: ');
 
@@ -108,11 +164,23 @@ class DropBoxController {
 
     });
 
+    this.btnRename.addEventListener("click", (e) => {
+      let li = this.getSelection()[0];
+      let file = JSON.parse(li.dataset.file);
+
+      let name = prompt("Renomar o arquivo:", file.originalFilename);
+
+      if (name) {
+
+        file.originalFilename = name;
+        this.getFirebaseRef().child(li.dataset.key).set(file);
+      }
+    });
+
 
     this.btnDelete.addEventListener("click", (e) => {
       this.removeTask()
         .then((responses) => {
-
           responses.forEach(response => {
             if (response.fields.key) {
               this.getFirebaseRef().child
@@ -180,7 +248,10 @@ class DropBoxController {
 
   getFirebaseRef(filepath) {
 
-    if (!filepath) filepath = this.currentFolder.join('/');
+    if (!filepath) {
+
+      filepath = this.currentFolder.join('/');
+    }
 
     return firebase.database().ref(filepath);
   }
@@ -568,7 +639,6 @@ class DropBoxController {
           break;
 
         default:
-          console.log(file.fiepath)
           window.open(file.filepath);
       }
     });
